@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-contract Calculator {
+contract JobsManager {
     uint256 _number;
 
     constructor(uint256 number_) {

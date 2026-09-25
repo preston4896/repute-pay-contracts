@@ -29,7 +29,7 @@ abstract contract DeploymentConfig is Script {
 
     function writeToJson(string memory contractName, address contractAddress) internal {
         bool isBroadcasting = vm.isContext(VmSafe.ForgeContext.ScriptBroadcast);
-        
+
         if (isBroadcasting) {
             string memory deploymentDir = string.concat(vm.projectRoot(), "/", "deployment");
 
