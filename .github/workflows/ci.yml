@@ -1,0 +1,36 @@
+name: Foundry Build CI/CD
+
+# Controls when the workflow will run
+on: 
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Foundry project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+        id: build
+
+      - name: Run Forge tests
+        run: |
+          forge test --gas-report > gasreport.ansi
+        id: test
