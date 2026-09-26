@@ -5,3 +5,4 @@ broadcast
 .env
 keystore
 deployment/31337.json
+**/.DS_Store

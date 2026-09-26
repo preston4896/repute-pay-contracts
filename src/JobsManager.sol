@@ -105,10 +105,10 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
         uint256 open = _activeJobs[msg.sender];
         if (open != 0) revert ClientStakeLocked();
 
+        delete _clientStakes[msg.sender];
+
         IERC20(stake.stakedAsset).safeTransfer(msg.sender, stake.stakedAmount);
         emit ClientUnregistered(msg.sender);
-
-        delete _clientStakes[msg.sender];
     }
 
     /// @notice Creates a job, checking that the caller has approved and holds enough of
@@ -163,7 +163,11 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     function nominateContractor(uint256 jobId, address contractor) external {
         Jobs storage job = _jobs[jobId];
         if (!_jobExists(job)) revert JobNotFound();
-        if (_jobHasStaled(job)) revert JobExpired();
+        if (!_jobHasStarted(job)) {
+            if (_jobHasStaled(job)) revert JobExpired();
+        } else {
+            revert JobHasStarted();
+        }
         if (job.closed) revert JobHasBeenClosed();
 
         if (msg.sender != job.client) revert MismatchedJobClient();
@@ -184,7 +188,11 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     function acceptJob(uint256 jobId) external nonReentrant {
         Jobs storage job = _jobs[jobId];
         if (!_jobExists(job)) revert JobNotFound();
-        if (_jobHasStaled(job)) revert JobExpired();
+        if (!_jobHasStarted(job)) {
+            if (_jobHasStaled(job)) revert JobExpired();
+        } else {
+            revert JobHasStarted();
+        }
         if (job.closed) revert JobHasBeenClosed();
 
         bool nominated = job.contractor != address(0);
@@ -219,11 +227,9 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
         Jobs storage job = _jobs[jobId];
         if (!_jobExists(job)) revert JobNotFound();
         if (job.closed) revert JobHasBeenClosed();
-
-        bool jobDurationHasPassed = _jobHasStarted(job) ? _activeJobHasExpired(job) : _jobHasStaled(job);
         bool jobCompleted;
 
-        if (jobDurationHasPassed) {
+        if ((!_jobHasStarted(job) && _jobHasStaled(job)) || _activeJobHasExpired(job)) {
             if (msg.sender != job.client && msg.sender != job.resolver) revert MismatchedJobResolver();
             if (job.escrowed) {
                 IERC20(job.asset).safeTransfer(job.client, job.amount);
@@ -307,7 +313,6 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     }
 
     function _jobHasStaled(Jobs storage job) internal view returns (bool) {
-        require(!_jobHasStarted(job), JobHasStarted());
         return block.timestamp > uint256(job.creationTime) + uint256(job.duration);
     }
 

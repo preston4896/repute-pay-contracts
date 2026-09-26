@@ -10,7 +10,7 @@ contract JobsManagerScript is Script, DeploymentConfig {
     function run() external {
         vm.startBroadcast();
 
-        JobsManager jobsManager = new JobsManager{salt: JOBS_MANAGER_SALT}(4896);
+        JobsManager jobsManager = new JobsManager{salt: JOBS_MANAGER_SALT}(msg.sender);
         console.log("JobsManager deployed at: ", address(jobsManager));
 
         vm.stopBroadcast();
