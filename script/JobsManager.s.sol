@@ -13,8 +13,10 @@ contract JobsManagerScript is Script, DeploymentConfig {
         // TODO: World ID Configuration
         address worldIdVerifier;
         address worldIdServiceVerifier;
-        uint256 worldAppAction;
+        bytes memory worldAppActionBytes = hex"";
         uint64 worldAppRpId;
+
+        uint256 worldAppAction = uint256(keccak256(worldAppActionBytes)) >> 8;
 
         JobsManager jobsManager = new JobsManager{salt: JOBS_MANAGER_SALT}(
             msg.sender,
