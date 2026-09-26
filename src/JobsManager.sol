@@ -7,6 +7,7 @@ import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 import {IJobsManager, Jobs, Stake} from "./interfaces/IJobsManager.sol";
+import {WorldIdVerifyNullifier} from "./libs/WorldIDVerifyNullifier.sol";
 
 /// @title JobsManager
 /// @notice Escrows client payments and contractor commitments for freelance jobs.
@@ -15,7 +16,7 @@ import {IJobsManager, Jobs, Stake} from "./interfaces/IJobsManager.sol";
 ///      contractor takes on client-solvency risk and is compensated from the client's slashed
 ///      stake if the client cannot pay on completion. This contract therefore holds client
 ///      stakes plus escrowed job payments plus accrued protocol fees -- never anything else.
-contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
+contract JobsManager is WorldIdVerifyNullifier, IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     using SafeERC20 for IERC20;
 
     /// @dev Ceiling on admin fee discretion; caps PROTOCOL_FEE_BP at 10%.
@@ -32,6 +33,7 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     mapping(address client => Stake) _clientStakes;
     /// @dev Prevents banned address from re-registering, even with different World ID nullifier.
     mapping(address client => bool banned) _clientBanned;
+    mapping(address client => uint256 nullifier) _clientNullifiers;
 
     /// @dev Cumulative un-escrowed job obligations per client per asset. Escrowing a job
     ///      (nominated acceptJob) moves its amount out of here; it cannot be derived from
@@ -42,7 +44,13 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     mapping(uint256 jobId => Jobs) private _jobs;
     mapping(address client => uint256[]) private _clientJobs;
 
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor(
+        address initialOwner,
+        address _worldIdVerifier,
+        address _trustedServiceVerifier,
+        uint256 _action,
+        uint64 _rpId
+    ) Ownable(initialOwner) WorldIdVerifyNullifier(_worldIdVerifier, _trustedServiceVerifier, _action, _rpId) {}
 
     // ---------------------------------------------------------------------
     // Admin
@@ -77,6 +85,14 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
         IERC20(asset).safeTransfer(to, amount);
     }
 
+    function setWorldIdVerifier(address _worldIdVerifier) external onlyOwner {
+        _setWorldIdVerifier(_worldIdVerifier);
+    }
+
+    function setServiceVerifier(address _serviceVerifier) external onlyOwner {
+        _setServiceVerifier(_serviceVerifier);
+    }
+
     // ---------------------------------------------------------------------
     // Client
     // ---------------------------------------------------------------------
@@ -89,7 +105,8 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
         uint256 required = stakeRequirement[asset];
         if (required == 0) revert InvalidAsset(asset);
 
-        // TODO: perform WorldID nullifier check here...
+        uint256 worldNullifier = _verifyWorldIdNullifier(data);
+        _clientNullifiers[msg.sender] = worldNullifier;
 
         _clientStakes[msg.sender] = Stake({stakedAsset: asset, stakedAmount: required});
         IERC20(asset).safeTransferFrom(msg.sender, address(this), required);
@@ -99,11 +116,14 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     /// @notice Returns the caller's stake and unregisters them, provided no job is open.
     function unregisterAndUnstake() external nonReentrant {
         if (!_clientHasRegistered(msg.sender)) revert ClientNotRegistered();
+        if (_clientBanned[msg.sender]) revert ClientBanned();
         Stake memory stake = _clientStakes[msg.sender];
         uint256 open = _activeJobs[msg.sender];
         if (open != 0) revert ClientStakeLocked();
 
         delete _clientStakes[msg.sender];
+        _unsetNullifier(_clientNullifiers[msg.sender]);
+        delete _clientNullifiers[msg.sender];
 
         IERC20(stake.stakedAsset).safeTransfer(msg.sender, stake.stakedAmount);
         emit ClientUnregistered(msg.sender);

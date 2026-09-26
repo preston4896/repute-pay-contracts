@@ -10,7 +10,19 @@ contract JobsManagerScript is Script, DeploymentConfig {
     function run() external {
         vm.startBroadcast();
 
-        JobsManager jobsManager = new JobsManager{salt: JOBS_MANAGER_SALT}(msg.sender);
+        // TODO: World ID Configuration
+        address worldIdVerifier;
+        address worldIdServiceVerifier;
+        uint256 worldAppAction;
+        uint64 worldAppRpId;
+
+        JobsManager jobsManager = new JobsManager{salt: JOBS_MANAGER_SALT}(
+            msg.sender,
+            worldIdVerifier,
+            worldIdServiceVerifier,
+            worldAppAction,
+            worldAppRpId
+        );
         console.log("JobsManager deployed at: ", address(jobsManager));
 
         vm.stopBroadcast();
