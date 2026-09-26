@@ -54,19 +54,24 @@ contract WorldIdVerifyNullifier {
         require(verifierSet, ZeroAddressVerifier());
     }
 
+    function worldServiceNonces() external view returns(uint256) {
+        return _nonces;
+    }
+
     function _verifyWorldIdNullifier(bytes calldata data) internal returns (uint256 nullifier) {
         if (address(worldIdVerifier) != address(0)) {
             nullifier = uint256(bytes32(data[0:32]));
             /// @dev we might need to make use of this to do caller address check
-            uint256 signalHash = uint256(bytes32(data[32:64]));
-            uint8 expiresAtMin = uint8(bytes1(data[64]));
-            uint64 issuerSchemaId = uint64(bytes8(data[65:73]));
-            uint256 credentialGenesisIssuedAtMin = uint256(bytes32(data[73:105]));
+            uint256 nonce = uint256(bytes32(data[32:64]));
+            uint256 signalHash = uint256(bytes32(data[64:96]));
+            uint64 expiresAtMin = uint64(bytes8(data[96:104]));
+            uint64 issuerSchemaId = uint64(bytes8(data[104:112]));
+            uint256 credentialGenesisIssuedAtMin = uint256(bytes32(data[112:144]));
             uint256[5] memory proof;
             for (uint256 i = 0; i < 5; i++) {
-                proof[i] = uint256(bytes32(data[105 + (5 * i):110 + (5 * i)]));
+                proof[i] = uint256(bytes32(data[144 + (32 * i):176 + (32 * i)]));
             }
-            _verifyWorldId(nullifier, signalHash, expiresAtMin, issuerSchemaId, credentialGenesisIssuedAtMin, proof);
+            _verifyWorldId(nullifier, nonce, signalHash, expiresAtMin, issuerSchemaId, credentialGenesisIssuedAtMin, proof);
         } else {
             nullifier = uint256(bytes32(data[0:32]));
             address boundedEoa = address(bytes20(data[32:52]));
@@ -100,8 +105,11 @@ contract WorldIdVerifyNullifier {
         delete _nullifierUsed[worldIdNullifier];
     }
 
+    // @dev: this is mostly wrong. 
+    // the goal of this hackathon for now is to get backend service to work correctly.
     function _verifyWorldId(
         uint256 nullifier,
+        uint256 nonce,
         uint256 signalHash,
         uint64 expiresAtMin,
         uint64 issuerSchemaId,
@@ -114,7 +122,7 @@ contract WorldIdVerifyNullifier {
             nullifier,
             WORLD_APP_ACTION,
             WORLD_APP_RP_ID,
-            _nonces++,
+            nonce,
             signalHash,
             expiresAtMin,
             issuerSchemaId,
