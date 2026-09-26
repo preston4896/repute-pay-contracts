@@ -26,12 +26,6 @@ struct Stake {
     uint256 stakedAmount;
 }
 
-enum BanCred {
-    None,
-    EOA,
-    Nullifier
-}
-
 interface IJobsManager {
     // events
 
@@ -56,7 +50,7 @@ interface IJobsManager {
     error ClientNotRegistered();
     error ClientHasRegistered();
     error ClientStakeLocked();
-    error ClientBanned(BanCred cred);
+    error ClientBanned();
 
     error InvalidJobPaymentAmount();
     error InvalidJobDuration();

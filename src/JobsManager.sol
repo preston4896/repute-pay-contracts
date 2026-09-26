@@ -6,7 +6,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
-import {IJobsManager, Jobs, Stake, BanCred} from "./interfaces/IJobsManager.sol";
+import {IJobsManager, Jobs, Stake} from "./interfaces/IJobsManager.sol";
 
 /// @title JobsManager
 /// @notice Escrows client payments and contractor commitments for freelance jobs.
@@ -32,8 +32,6 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     mapping(address client => Stake) _clientStakes;
     /// @dev Prevents banned address from re-registering, even with different World ID nullifier.
     mapping(address client => bool banned) _clientBanned;
-    /// TODO: unused for now; will be used to prevent banned clients from re-registering with a different wallet.
-    mapping(bytes32 worldIdNullifier => bool known) _nullifierUsed;
 
     /// @dev Cumulative un-escrowed job obligations per client per asset. Escrowing a job
     ///      (nominated acceptJob) moves its amount out of here; it cannot be derived from
@@ -86,7 +84,7 @@ contract JobsManager is IJobsManager, Ownable2Step, ReentrancyGuardTransient {
     /// @notice Stakes the required amount of `asset` and registers the caller as a client.
     /// @param data Reserved for proof-of-humanhood verification
     function registerAndStake(address asset, bytes calldata data) external nonReentrant {
-        if (_clientBanned[msg.sender]) revert ClientBanned(BanCred.EOA);
+        if (_clientBanned[msg.sender]) revert ClientBanned();
         if (_clientHasRegistered(msg.sender)) revert ClientHasRegistered();
         uint256 required = stakeRequirement[asset];
         if (required == 0) revert InvalidAsset(asset);
