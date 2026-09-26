@@ -23,8 +23,6 @@ contract WorldIdVerifyNullifier {
     uint256 public immutable WORLD_APP_ACTION;
     uint64 public immutable WORLD_APP_RP_ID;
 
-    uint256 _nonces;
-
     /// @dev World ID Verifier contract address takes precedence over
     /// the trusted service verifier address
     IWorldIDVerifier public worldIdVerifier;
@@ -52,10 +50,6 @@ contract WorldIdVerifyNullifier {
 
         bool verifierSet = address(worldIdVerifier) != address(0) || trustedServiceVerifier != address(0);
         require(verifierSet, ZeroAddressVerifier());
-    }
-
-    function worldServiceNonces() external view returns(uint256) {
-        return _nonces;
     }
 
     function _verifyWorldIdNullifier(bytes calldata data) internal returns (uint256 nullifier) {
@@ -137,7 +131,7 @@ contract WorldIdVerifyNullifier {
         if (_nullifierUsed[_nullifier]) revert NullifierAlreadyUsed();
 
         bytes32 messageHash =
-            keccak256(abi.encodePacked(_nullifier, _boundedEoa, WORLD_APP_ACTION, WORLD_APP_RP_ID, _nonces++));
+            keccak256(abi.encodePacked(_nullifier, _boundedEoa, WORLD_APP_ACTION, WORLD_APP_RP_ID));
 
         address signer = messageHash.recover(signature);
         if (signer != trustedServiceVerifier) revert InvalidServiceSignature();
