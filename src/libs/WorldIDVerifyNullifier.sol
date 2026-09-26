@@ -54,6 +54,8 @@ contract WorldIdVerifyNullifier {
 
     function _verifyWorldIdNullifier(bytes calldata data) internal returns (uint256 nullifier) {
         if (address(worldIdVerifier) != address(0)) {
+            // on-chain flow
+            
             nullifier = uint256(bytes32(data[0:32]));
             /// @dev we might need to make use of this to do caller address check
             uint256 nonce = uint256(bytes32(data[32:64]));
@@ -67,6 +69,8 @@ contract WorldIdVerifyNullifier {
             }
             _verifyWorldId(nullifier, nonce, signalHash, expiresAtMin, issuerSchemaId, credentialGenesisIssuedAtMin, proof);
         } else {
+            // off-chain flow
+
             nullifier = uint256(bytes32(data[0:32]));
             address boundedEoa = address(bytes20(data[32:52]));
 
